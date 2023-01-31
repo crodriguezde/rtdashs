@@ -1,0 +1,23 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: rtdash
+  name: rtdash
+spec:
+  containers:
+  - image: golang:1.19-bullseye
+    name: rtdash
+    ports:
+    - containerPort: 3000
+    command: "/usr/local/go/bin/go"
+  initContainers:
+  - name: git-cloner
+    image: alpine/git
+    args:
+        - clone
+        - --single-branch
+        - --
+        - https://github.com/crodriguezde/rtdashs
+        - /app
