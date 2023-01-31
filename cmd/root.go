@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/Shopify/sarama"
+	"github.com/crodriguezde/rtdashs/pkg/consumer"
 	"github.com/crodriguezde/rtdashs/pkg/events"
 	"github.com/crodriguezde/rtdashs/pkg/generator"
 	"github.com/crodriguezde/rtdashs/pkg/server"
@@ -27,6 +29,27 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
+		verbose, err := cmd.Flags().GetBool("verbose")
+		if err != nil {
+			return err
+		}
+
+		broker, err := cmd.Flags().GetString("broker")
+		if err != nil {
+			return err
+		}
+
+		topic, err := cmd.Flags().GetString("topic")
+		if err != nil {
+			return err
+		}
+
+		version, err := cmd.Flags().GetString("version")
+		if err != nil {
+			return err
+		}
+
 		log.Printf("listening on http://%s", addr)
 
 		// Initialize the notify channel
@@ -34,6 +57,18 @@ var rootCmd = &cobra.Command{
 		ctx := context.Background()
 
 		handler := server.NewHandler(ctx, send)
+
+		// Start listening to kafka topic
+		if verbose {
+			sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
+		}
+
+		consumer, err := consumer.StartSync(broker, topic, version)
+		if err != nil {
+			return err
+		}
+
+		defer consumer.Close()
 
 		// Start generator
 		generator.RunCpuGenerator(ctx, send)
@@ -58,4 +93,8 @@ func Execute() {
 
 func init() {
 	rootCmd.Flags().StringP("addr", "a", "localhost:3000", "bind address")
+	rootCmd.Flags().StringP("broker", "b", "kafka.default.svc.cluster.local", "Kafka bootstrap brokers, separated list")
+	rootCmd.Flags().StringP("topic", "t", "telemetry-synthetics-cpu", "Topic to listen for cpu metrics")
+	rootCmd.Flags().StringP("version", "s", "2.1.1", "Kafka cluster version")
+	rootCmd.Flags().BoolP("verbose", "v", false, "Verbose logging")
 }
