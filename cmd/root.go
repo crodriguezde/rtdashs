@@ -93,7 +93,7 @@ func Execute() {
 
 func init() {
 	rootCmd.Flags().StringP("addr", "a", "localhost:3000", "bind address")
-	rootCmd.Flags().StringP("broker", "b", "kafka.default.svc.cluster.local", "Kafka bootstrap brokers, separated list")
+	rootCmd.Flags().StringP("broker", "b", "kafka.default.svc.cluster.local:9092", "Kafka bootstrap brokers, separated list")
 	rootCmd.Flags().StringP("topic", "t", "telemetry-synthetics-cpu", "Topic to listen for cpu metrics")
 	rootCmd.Flags().StringP("version", "s", "2.1.1", "Kafka cluster version")
 	rootCmd.Flags().BoolP("verbose", "v", false, "Verbose logging")
