@@ -7,17 +7,17 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/crodriguezde/rtdashs/pkg/events"
+	kafkaPlayloads "github.com/crodriguezde/rtdashs/pkg/kafkaPayloads"
 	"github.com/crodriguezde/rtdashs/static"
 	"github.com/gorilla/mux"
 )
 
 type handler struct {
 	ctx  context.Context
-	send chan *events.Cpu
+	send chan *kafkaPlayloads.Cpu
 }
 
-func NewHandler(ctx context.Context, send chan *events.Cpu) *mux.Router {
+func NewHandler(ctx context.Context, send chan *kafkaPlayloads.Cpu) *mux.Router {
 	h := &handler{
 		ctx:  ctx,
 		send: send,

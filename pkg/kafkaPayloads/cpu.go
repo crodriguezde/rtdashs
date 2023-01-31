@@ -14,5 +14,5 @@ type Cpu struct {
 	Host         string  `json:"host"`
 	Organization string  `json:"organization"`
 	PhysicalId   string  `json:"physical_id"`
-	Timestamp    float32 `json:"timestamp"`
+	Timestamp    uint64  `json:"timestamp"`
 }

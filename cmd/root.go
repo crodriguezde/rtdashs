@@ -1,5 +1,5 @@
 /*
-Copyright © 2023 NAME HERE <EMAIL ADDRESS>
+Copyright © 2023 Carlos Marcelo crodriguezde@microsoft.com
 */
 package cmd
 
@@ -11,8 +11,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/crodriguezde/rtdashs/pkg/consumer"
-	"github.com/crodriguezde/rtdashs/pkg/events"
-	"github.com/crodriguezde/rtdashs/pkg/generator"
+	kafkaPlayloads "github.com/crodriguezde/rtdashs/pkg/kafkaPayloads"
 	"github.com/crodriguezde/rtdashs/pkg/server"
 	"github.com/spf13/cobra"
 )
@@ -53,7 +52,7 @@ var rootCmd = &cobra.Command{
 		log.Printf("listening on http://%s", addr)
 
 		// Initialize the notify channel
-		send := make(chan *events.Cpu)
+		send := make(chan *kafkaPlayloads.Cpu)
 		ctx := context.Background()
 
 		handler := server.NewHandler(ctx, send)
@@ -63,15 +62,15 @@ var rootCmd = &cobra.Command{
 			sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
 		}
 
-		consumer, err := consumer.StartSync(broker, topic, version)
+		consumer, err := consumer.StartSync(broker, topic, version, send)
 		if err != nil {
 			return err
 		}
 
 		defer consumer.Close()
 
-		// Start generator
-		generator.RunCpuGenerator(ctx, send)
+		// disable generator
+		// generator.RunCpuGenerator(ctx, send)
 
 		err = http.ListenAndServe(addr, handler)
 		if err != nil {

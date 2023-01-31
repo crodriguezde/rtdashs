@@ -7,17 +7,9 @@ metadata:
   name: rtdash
 spec:
   containers:
-  - image: golang:1.19-bullseye
+  - image: tpadevopsacr.azurecr.io/rtdashs:64f5310-dirty__linux_amd64
+    imagePullPolicy: Always
     name: rtdash
     ports:
     - containerPort: 3000
-    command: "/usr/local/go/bin/go"
-  initContainers:
-  - name: git-cloner
-    image: alpine/git
-    args:
-        - clone
-        - --single-branch
-        - --
-        - https://github.com/crodriguezde/rtdashs
-        - /app
+  

@@ -209,50 +209,6 @@ shell: | $(BUILD_DIRS)
 	    $(BUILD_IMAGE)                                          \
 	    /bin/sh $(CMD)
 
-LICENSES = .licenses
-
-$(LICENSES): | $(BUILD_DIRS)
-	# Don't assume that `go` is available locally.
-	docker run                                 \
-	    -i                                     \
-	    --rm                                   \
-	    -u $$(id -u):$$(id -g)                 \
-	    -v $$(pwd)/tools:/src                  \
-	    -w /src                                \
-	    -v $$(pwd)/bin/tools:/go/bin           \
-	    -v $$(pwd)/.go/cache:/.cache           \
-	    --env GOCACHE="/.cache/gocache"        \
-	    --env GOMODCACHE="/.cache/gomodcache"  \
-	    --env CGO_ENABLED=0                    \
-	    --env HTTP_PROXY="$(HTTP_PROXY)"       \
-	    --env HTTPS_PROXY="$(HTTPS_PROXY)"     \
-	    $(BUILD_IMAGE)                         \
-	    go install github.com/google/go-licenses
-	# The tool runs in a container because it execs `go`, which doesn't
-	# play nicely with CI.  The tool also wants its output dir to not
-	# exist, so we can't just volume mount $(LICENSES).
-	rm -rf $(LICENSES).tmp
-	mkdir $(LICENSES).tmp
-	docker run                              \
-	    -i                                  \
-	    --rm                                \
-	    -u $$(id -u):$$(id -g)              \
-	    -v $$(pwd)/$(LICENSES).tmp:/output  \
-	    -v $$(pwd):/src                     \
-	    -w /src                             \
-	    -v $$(pwd)/bin/tools:/go/bin        \
-	    -v $$(pwd)/.go/cache:/.cache        \
-	    -v $$(pwd)/.go/pkg:/go/pkg          \
-	    --env HTTP_PROXY="$(HTTP_PROXY)"    \
-	    --env HTTPS_PROXY="$(HTTPS_PROXY)"  \
-	    $(BUILD_IMAGE)                      \
-	    go-licenses save ./... --save_path=/output/licenses
-	rm -rf $(LICENSES)
-	mv $(LICENSES).tmp/licenses $(LICENSES)
-	rmdir $(LICENSES).tmp
-	find $(LICENSES) -type d | xargs chmod 0755
-	find $(LICENSES) -type f | xargs chmod 0644
-
 CONTAINER_DOTFILES = $(foreach bin,$(BINS),.container-$(subst /,_,$(REGISTRY)/$(bin))-$(TAG))
 
 # We print the container names here, rather than in CONTAINER_DOTFILES so
@@ -270,7 +226,7 @@ $(foreach bin,$(BINS),$(eval $(strip                                 \
     .container-$(subst /,_,$(REGISTRY)/$(bin))-$(TAG): BIN = $(bin)  \
 )))
 $(foreach bin,$(BINS),$(eval                                         \
-    .container-$(subst /,_,$(REGISTRY)/$(bin))-$(TAG): bin/$(OS)_$(ARCH)/$(bin)$(BIN_EXTENSION) $(LICENSES) Dockerfile.in  \
+    .container-$(subst /,_,$(REGISTRY)/$(bin))-$(TAG): bin/$(OS)_$(ARCH)/$(bin)$(BIN_EXTENSION) Dockerfile.in  \
 ))
 # This is the target definition for all container-dotfiles.
 # These are used to track build state in hidden files.
@@ -282,15 +238,13 @@ $(CONTAINER_DOTFILES): .buildx-initialized
 	    -e 's|{ARG_OS}|$(OS)|g'                    \
 	    -e 's|{ARG_FROM}|$(BASE_IMAGE)|g'          \
 	    Dockerfile.in > .dockerfile-$(BIN)-$(OS)_$(ARCH)
-	HASH_LICENSES=$$(find $(LICENSES) -type f                       \
-		    | xargs md5sum | md5sum | cut -f1 -d' ');           \
+
 	HASH_BINARY=$$(md5sum bin/$(OS)_$(ARCH)/$(BIN)$(BIN_EXTENSION)  \
 		    | cut -f1 -d' ');                                   \
 	FORCE=0;                                                        \
 	docker buildx build                                             \
 	    --builder "$(BUILDX_NAME)"                                  \
 	    --build-arg FORCE_REBUILD="$$FORCE"                         \
-	    --build-arg HASH_LICENSES="$$HASH_LICENSES"                 \
 	    --build-arg HASH_BINARY="$$HASH_BINARY"                     \
 	    --progress=plain                                            \
 	    --load                                                      \
@@ -397,7 +351,7 @@ clean: # @HELP removes built binaries and temporary files
 clean: container-clean bin-clean
 
 container-clean:
-	rm -rf .container-* .dockerfile-* .push-* .buildx-initialized $(LICENSES)
+	rm -rf .container-* .dockerfile-* .push-* .buildx-initialized 
 
 bin-clean:
 	test -d .go && chmod -R u+w .go || true

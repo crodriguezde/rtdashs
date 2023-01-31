@@ -2,49 +2,112 @@
 <html>
   <head>
     <meta charset="utc-8" />
-    <title>golang SSE demo</title>
+    <title>Synthetics realtime dashboards </title>
     <script src="//cdn.plot.ly/plotly-2.18.0.min.js"></script>
   </head>
   <body>
-    <h1>Simple golang SSE demo</h1>
-    <div id="myDiv"><!-- Plotly chart will be drawn inside this DIV --></div>
+    <h1>CPU Dashboards</h1>
     <script>
-      Plotly.newPlot("myDiv", [
-        {
-          x: [new Date()],
-          y: [Math.random()],
-          mode: "lines",
-          line: { color: "#80CAF6" },
-        },
-      ]);
-
+      
       // Fire up a new event source connected to the server
       var sse = new EventSource("/api/stream/cpu");
+      var iDiv = document.createElement('div');
+      document.body.appendChild(iDiv)
+
+      var graphs = {}
+
+      function createTrace(data) {
+        var time = new Date();
+
+        var trace = {
+          x: [time],
+          y: [data.host],
+          type: "scatter",
+          name: data["host"] + "-" + data["cpu"],
+          line: { color: "#" + (Math.floor(Math.random()*16777215).toString(16)) },
+        }
+        return trace
+      }
+
+      function createGraph(data) {
+        // Create new plotty chart
+        var layout = {
+            title: {
+              text: data["host"] + ' CPU',
+            },
+            xaxis: {
+              title: {
+                text: "time",
+                type: "date",
+              }
+            },
+            yaxis: {
+              title: {
+                text: "active_usage",
+              },
+              range: [0, 100],
+              tickmode: "linear",
+              nticks: 10, 
+              dtick: 10, 
+            }
+          }
+          trace = createTrace(data)
+          Plotly.newPlot(data["host"],[trace], layout);
+
+          return trace
+      }
+
       sse.addEventListener("update", function (e) {
+        
         // Parse the JSON
         var data = JSON.parse(e.data);
 
-        // Update the plot - we use a local time for the x-axis
-        // We also "relayOut" the old data after 1 minute
-        var time = new Date();
+        // if new graph
+        if (!(data["host"] in graphs)) {
+          //console.log("Creating new graph for " + data.host)
+          // Update dictionary
+          graphs[data["host"]] = new Array()
 
-        var update = {
-          x: [[time]],
-          y: [[data.value]],
-        };
+          //console.log("Creating div for " + data["host"] )
+          // Create div 
+          var graphDiv = document.createElement('div');
+          graphDiv.setAttribute("id", data["host"])
+          iDiv.appendChild(graphDiv)
 
-        var olderTime = time.setMinutes(time.getMinutes() - 1);
-        var futureTime = time.setMinutes(time.getMinutes() + 1);
+          trace = createGraph(data)
+          graphs[data.host].push(data.cpu)
+        } // End creating new chart
+        
+        // if new trace 
+        if (!(graphs[data.host].includes(data["cpu"]))) {
+          trace = createTrace(data)
+          graphs[data["host"]].push(data["cpu"])
+          Plotly.addTraces(data["host"], trace)
+          //console.log("Adding new trace " + data.cpu + " for " + data.host)
+        } else {
+          //console.log("DEBUG: updating " + data.host + "/" + data.cpu)
+          var time = new Date();
+          var olderTime = time.setMinutes(time.getMinutes() - 1);
+          var futureTime = time.setMinutes(time.getMinutes() + 1);
 
-        var minuteView = {
-          xaxis: {
-            type: "date",
-            range: [olderTime, futureTime],
-          },
-        };
+          var minuteView = {
+            xaxis: {
+              type: "date",
+              range: [olderTime, futureTime],
+            },
+          };
+          let idx = graphs[data.host].indexOf(data.cpu)
+          //console.log("DEBUG, index of " + data.host + "/" + data.cpu + " is " + idx)
+          // Update traces
+          var update = {
+            x: [[time]],
+            y: [[data.usage_active]],
+          }
 
-        Plotly.relayout("myDiv", minuteView);
-        Plotly.extendTraces("myDiv", update, [0]);
+          Plotly.extendTraces(data["host"], update, [idx]);
+          Plotly.relayout(data["host"], minuteView);
+        }
+        
       });
     </script>
   </body>

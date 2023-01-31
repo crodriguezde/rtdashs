@@ -38,6 +38,7 @@ func NewConsumerGroup(broker string, topics []string, group string, handler Cons
 
 	go func() {
 		for {
+			log.Printf("Starting consumer for topic %s\n", topics)
 			err := client.Consume(ctx, topics, handler)
 			if err != nil {
 				if err == sarama.ErrClosedConsumerGroup {
@@ -54,6 +55,7 @@ func NewConsumerGroup(broker string, topics []string, group string, handler Cons
 	}()
 
 	handler.WaitReady() // Await till the consumer has been set up
+	log.Println("Consumer ready")
 
 	return &ConsumerGroup{
 		cg: client,
@@ -69,22 +71,26 @@ type ConsumerSessionMessage struct {
 	Message *sarama.ConsumerMessage
 }
 
-func decodeMessage(data []byte) error {
-	var msg kafkaPlayloads.Generic
+func decodeMessage(data []byte) (*kafkaPlayloads.Cpu, error) {
+	var msg kafkaPlayloads.Cpu
 	err := json.Unmarshal(data, &msg)
 	if err != nil {
-		return err
+		log.Printf("Error: %s", err.Error())
+		return nil, err
 	}
-	return nil
+	log.Printf("%v\n", msg)
+	return &msg, nil
 }
 
-func StartSync(broker, topic string, version string) (*ConsumerGroup, error) {
+func StartSync(broker, topic string, version string, send chan *kafkaPlayloads.Cpu) (*ConsumerGroup, error) {
 	var count int64
 	var start = time.Now()
 	handler := NewSyncConsumerGroupHandler(func(data []byte) error {
-		if err := decodeMessage(data); err != nil {
+		msg, err := decodeMessage(data)
+		if err != nil {
 			return err
 		}
+		send <- msg
 		count++
 		if count%5000 == 0 {
 			fmt.Printf("sync consumer consumed %d messages at speed %.2f/s\n", count, float64(count)/time.Since(start).Seconds())
