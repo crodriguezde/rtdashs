@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	kafkaPlayloads "github.com/crodriguezde/rtdashs/pkg/kafkaPayloads"
 	"github.com/crodriguezde/rtdashs/static"
@@ -42,6 +43,8 @@ func (h *handler) cpuStream(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case cpuEvent := <-h.send:
+			currentTime := time.Now()
+			cpuEvent.Latency = currentTime.UnixMilli() - int64(cpuEvent.Timestamp)
 			if buf, err := json.Marshal(cpuEvent); err != nil {
 				log.Printf("cannot marshal event: %s", err)
 				return
