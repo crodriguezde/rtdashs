@@ -15,4 +15,5 @@ type Cpu struct {
 	Organization string  `json:"organization"`
 	PhysicalId   string  `json:"physical_id"`
 	Timestamp    uint64  `json:"timestamp"`
+	Latency      int64   `json:"latency"`
 }
