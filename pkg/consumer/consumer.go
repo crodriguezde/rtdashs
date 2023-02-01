@@ -78,7 +78,6 @@ func decodeMessage(data []byte) (*kafkaPlayloads.Cpu, error) {
 		log.Printf("Error: %s", err.Error())
 		return nil, err
 	}
-	log.Printf("%v\n", msg)
 	return &msg, nil
 }
 
@@ -93,7 +92,7 @@ func StartSync(broker, topic string, version string, send chan *kafkaPlayloads.C
 		send <- msg
 		count++
 		if count%5000 == 0 {
-			fmt.Printf("sync consumer consumed %d messages at speed %.2f/s\n", count, float64(count)/time.Since(start).Seconds())
+			log.Printf("sync consumer consumed %d messages at speed %.2f/s\n", count, float64(count)/time.Since(start).Seconds())
 		}
 		return nil
 	})
