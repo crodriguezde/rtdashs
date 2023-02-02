@@ -6,22 +6,20 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
-	kafkaPlayloads "github.com/crodriguezde/rtdashs/pkg/kafkaPayloads"
 	"github.com/crodriguezde/rtdashs/static"
 	"github.com/gorilla/mux"
 )
 
 type handler struct {
 	ctx  context.Context
-	send chan *kafkaPlayloads.Cpu
+	recv chan map[string]int64
 }
 
-func NewHandler(ctx context.Context, send chan *kafkaPlayloads.Cpu) *mux.Router {
+func NewHandler(ctx context.Context, recv chan map[string]int64) *mux.Router {
 	h := &handler{
 		ctx:  ctx,
-		send: send,
+		recv: recv,
 	}
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/api/stream/cpu", h.cpuStream)
@@ -42,10 +40,8 @@ func (h *handler) cpuStream(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		select {
-		case cpuEvent := <-h.send:
-			currentTime := time.Now()
-			cpuEvent.Latency = currentTime.UnixMilli() - int64(cpuEvent.Timestamp)
-			if buf, err := json.Marshal(cpuEvent); err != nil {
+		case avgEvent := <-h.recv:
+			if buf, err := json.Marshal(avgEvent); err != nil {
 				log.Printf("cannot marshal event: %s", err)
 				return
 			} else if _, err := fmt.Fprintf(w, "event: update\ndata: %s\n\n", buf); err != nil {

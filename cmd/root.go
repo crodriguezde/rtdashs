@@ -13,6 +13,7 @@ import (
 	"github.com/crodriguezde/rtdashs/pkg/consumer"
 	kafkaPlayloads "github.com/crodriguezde/rtdashs/pkg/kafkaPayloads"
 	"github.com/crodriguezde/rtdashs/pkg/server"
+	"github.com/crodriguezde/rtdashs/pkg/sink"
 	"github.com/spf13/cobra"
 )
 
@@ -55,8 +56,6 @@ var rootCmd = &cobra.Command{
 		send := make(chan *kafkaPlayloads.Cpu)
 		ctx := context.Background()
 
-		handler := server.NewHandler(ctx, send)
-
 		// Start listening to kafka topic
 		if verbose {
 			sarama.Logger = log.New(os.Stdout, "[sarama] ", log.LstdFlags)
@@ -69,13 +68,19 @@ var rootCmd = &cobra.Command{
 
 		defer consumer.Close()
 
+		collector := sink.NewServer(ctx, send)
+		collector.Start()
+
 		// disable generator
 		// generator.RunCpuGenerator(ctx, send)
+
+		handler := server.NewHandler(ctx, collector.GetChannel())
 
 		err = http.ListenAndServe(addr, handler)
 		if err != nil {
 			return err
 		}
+		<-ctx.Done()
 
 		return err
 	},
