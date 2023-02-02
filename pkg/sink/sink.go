@@ -34,10 +34,8 @@ func (s *Server) Start() {
 		for {
 			select {
 			case <-ticker.C:
-				log.Printf("Tick aggregating")
 				s.cpudata.Aggregate()
-				for id, session := range s.sessions {
-					log.Printf("Sending data to %s", id)
+				for _, session := range s.sessions {
 					session <- s.cpudata.avg
 				}
 			case msg := <-s.recv:
