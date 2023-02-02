@@ -28,14 +28,18 @@ func (m *Metric) Add(key string, metric uint64) {
 
 func (m *Metric) Aggregate() {
 	for host, metrics := range m.data {
-		sum := int64(0)
-		for _, metric := range metrics {
-			sum += metric
+		// Dont aggregate if we dont have metrics
+		if len(metrics) > 0 {
+			sum := int64(0)
+			for _, metric := range metrics {
+				sum += metric
+			}
+			avg := sum / int64(len(metrics))
+			m.avg[host] = avg
+			//log.Printf("%s -> avg %dms size: %d", host, avg, len(metrics))
+			// Erase values
+			m.data[host] = nil
 		}
-		avg := sum / int64(len(metrics))
-		m.avg[host] = avg
-		//log.Printf("%s -> avg %dms size: %d", host, avg, len(metrics))
-		// Erase values
-		m.data[host] = nil
+
 	}
 }
