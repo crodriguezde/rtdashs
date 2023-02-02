@@ -7,19 +7,21 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/crodriguezde/rtdashs/pkg/sink"
 	"github.com/crodriguezde/rtdashs/static"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
 type handler struct {
-	ctx  context.Context
-	recv chan map[string]int64
+	ctx context.Context
+	sk  *sink.Server
 }
 
-func NewHandler(ctx context.Context, recv chan map[string]int64) *mux.Router {
+func NewHandler(ctx context.Context, sk *sink.Server) *mux.Router {
 	h := &handler{
-		ctx:  ctx,
-		recv: recv,
+		ctx: ctx,
+		sk:  sk,
 	}
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/api/stream/cpu", h.cpuStream)
@@ -33,14 +35,25 @@ func NewHandler(ctx context.Context, recv chan map[string]int64) *mux.Router {
 
 func (h *handler) cpuStream(w http.ResponseWriter, r *http.Request) {
 	log.Printf("stream connected %p", r)
-	defer log.Printf("stream disconnected %p", r)
+	id := uuid.New().String()
+
+	recv, err := h.sk.Register(id)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+
+	defer func() {
+		log.Printf("stream disconnected %p", r)
+		h.sk.Deregister(id)
+	}()
 
 	w.Header().Set("content-Type", "text/event-stream")
 	w.Header().Set("cache-Control", "no-store")
 
 	for {
 		select {
-		case avgEvent := <-h.recv:
+		case avgEvent := <-recv:
 			if buf, err := json.Marshal(avgEvent); err != nil {
 				log.Printf("cannot marshal event: %s", err)
 				return

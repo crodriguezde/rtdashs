@@ -7,7 +7,7 @@ metadata:
   name: rtdash
 spec:
   containers:
-  - image: tpadevopsacr.azurecr.io/rtdashs:ca8d36d-dirty__linux_amd64
+  - image: tpadevopsacr.azurecr.io/rtdashs:50ef82d-dirty__linux_amd64
     imagePullPolicy: Always
     name: rtdash
     ports:

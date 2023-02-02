@@ -30,7 +30,7 @@ func NewConsumerGroup(broker string, topics []string, group string, handler Cons
 		log.Panicf("Error parsing Kafka version: %v", err)
 	}
 	cfg.Version = version
-	cfg.Consumer.Offsets.Initial = sarama.OffsetNewest
+	cfg.Consumer.Offsets.Initial = sarama.OffsetOldest
 	client, err := sarama.NewConsumerGroup([]string{broker}, group, cfg)
 	if err != nil {
 		panic(err)
@@ -81,7 +81,7 @@ func decodeMessage(data []byte) (*kafkaPlayloads.Cpu, error) {
 	return &msg, nil
 }
 
-func StartSync(broker, topic string, version string, send chan *kafkaPlayloads.Cpu) (*ConsumerGroup, error) {
+func StartSync(broker, topic string, version string, sink chan *kafkaPlayloads.Cpu) (*ConsumerGroup, error) {
 	var count int64
 	var start = time.Now()
 	handler := NewSyncConsumerGroupHandler(func(data []byte) error {
@@ -89,7 +89,7 @@ func StartSync(broker, topic string, version string, send chan *kafkaPlayloads.C
 		if err != nil {
 			return err
 		}
-		send <- msg
+		sink <- msg
 		count++
 		if count%5000 == 0 {
 			log.Printf("sync consumer consumed %d messages at speed %.2f/s\n", count, float64(count)/time.Since(start).Seconds())

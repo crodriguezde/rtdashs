@@ -2,6 +2,7 @@ package sink
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -9,18 +10,19 @@ import (
 )
 
 type Server struct {
-	recv    chan *kafkaPlayloads.Cpu
-	send    chan map[string]int64
-	ctx     context.Context
-	cpudata Metric
+	recv chan *kafkaPlayloads.Cpu
+	// Map of channels, one per session
+	sessions map[string]chan map[string]int64
+	ctx      context.Context
+	cpudata  Metric
 }
 
 func NewServer(ctx context.Context, recv chan *kafkaPlayloads.Cpu) *Server {
 	return &Server{
-		recv:    recv,
-		ctx:     ctx,
-		cpudata: *NewMetric(ctx),
-		send:    make(chan map[string]int64),
+		recv:     recv,
+		ctx:      ctx,
+		cpudata:  *NewMetric(ctx),
+		sessions: make(map[string]chan map[string]int64),
 	}
 }
 
@@ -32,10 +34,11 @@ func (s *Server) Start() {
 		for {
 			select {
 			case <-ticker.C:
+				log.Printf("Tick aggregating")
 				s.cpudata.Aggregate()
-				// dont send data if avg array is empty
-				if len(s.cpudata.avg) > 0 {
-					s.send <- s.cpudata.avg
+				for id, session := range s.sessions {
+					log.Printf("Sending data to %s", id)
+					session <- s.cpudata.avg
 				}
 			case msg := <-s.recv:
 				s.cpudata.Add(msg.Host, msg.Timestamp)
@@ -46,6 +49,19 @@ func (s *Server) Start() {
 	}()
 }
 
-func (s *Server) GetChannel() chan map[string]int64 {
-	return s.send
+func (s *Server) Register(id string) (chan map[string]int64, error) {
+	var ch chan map[string]int64
+	if _, ok := s.sessions[id]; !ok {
+		ch = make(chan map[string]int64)
+		log.Printf("Stream with id %s registered", id)
+		s.sessions[id] = ch
+		return ch, nil
+	}
+
+	return ch, fmt.Errorf("id already in session")
+}
+
+func (s *Server) Deregister(id string) {
+	delete(s.sessions, id)
+	log.Printf("Stream with id %s deregistered", id)
 }

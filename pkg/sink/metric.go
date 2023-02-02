@@ -35,5 +35,7 @@ func (m *Metric) Aggregate() {
 		avg := sum / int64(len(metrics))
 		m.avg[host] = avg
 		//log.Printf("%s -> avg %dms size: %d", host, avg, len(metrics))
+		// Erase values
+		m.data[host] = nil
 	}
 }

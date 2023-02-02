@@ -74,7 +74,7 @@ var rootCmd = &cobra.Command{
 		// disable generator
 		// generator.RunCpuGenerator(ctx, send)
 
-		handler := server.NewHandler(ctx, collector.GetChannel())
+		handler := server.NewHandler(ctx, collector)
 
 		err = http.ListenAndServe(addr, handler)
 		if err != nil {
